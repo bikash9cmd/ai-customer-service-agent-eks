@@ -38,36 +38,63 @@ INVENTORY = {
 }
 
 
+def _normalize_order_id(order_id: str) -> str:
+    """Trim and upper-case an order ID so ' ord-12345 ' finds ORD-12345."""
+    return order_id.strip().upper()
+
+
 @mcp.tool()
 def lookup_order(order_id: str) -> dict:
     """Look up order status, tracking, and details by order ID."""
-    order = ORDERS.get(order_id.upper())
+    oid = _normalize_order_id(order_id)
+    order = ORDERS.get(oid)
     if not order:
         return {"error": f"Order {order_id} not found."}
     total = sum(i["price"] * i["qty"] for i in order["items"])
-    return {"order_id": order_id.upper(), **order, "total": f"${total:.2f}"}
+    return {"order_id": oid, **order, "total": f"${total:.2f}"}
 
 
 @mcp.tool()
 def check_inventory(product_name: str) -> dict:
-    """Check stock availability for a product."""
+    """Check stock availability for a product.
+
+    An exact name (case-insensitive) wins. Otherwise a partial name must match
+    exactly one product; if several match, the candidates are returned so the
+    agent can ask the customer which one they mean.
+    """
+    query = product_name.strip().lower()
+    if not query:
+        return {"error": "Please provide a product name to check."}
+
     for name, qty in INVENTORY.items():
-        if product_name.lower() in name.lower():
+        if name.lower() == query:
             return {"product": name, "in_stock": qty > 0, "quantity": qty}
+
+    matches = [name for name in INVENTORY if query in name.lower()]
+    if len(matches) == 1:
+        name = matches[0]
+        qty = INVENTORY[name]
+        return {"product": name, "in_stock": qty > 0, "quantity": qty}
+    if matches:
+        return {
+            "error": f"'{product_name}' matches several products. Ask which one the customer means.",
+            "candidates": matches,
+        }
     return {"error": f"Product '{product_name}' not found in inventory."}
 
 
 @mcp.tool()
 def initiate_return(order_id: str, reason: str) -> dict:
     """Initiate a return for an order. Returns a return authorization number."""
-    order = ORDERS.get(order_id.upper())
+    oid = _normalize_order_id(order_id)
+    order = ORDERS.get(oid)
     if not order:
         return {"error": f"Order {order_id} not found."}
     if order["status"] == "processing":
         return {"error": "Cannot return an order that hasn't shipped yet. Please cancel instead."}
     return {
-        "return_id": f"RET-{order_id.upper().replace('ORD-', '')}",
-        "order_id": order_id.upper(),
+        "return_id": f"RET-{oid.replace('ORD-', '')}",
+        "order_id": oid,
         "status": "approved",
         "reason": reason,
         "instructions": "Ship the item to: AnyCompany Returns, 100 Warehouse Blvd, Seattle, WA 98101",
