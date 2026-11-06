@@ -1,5 +1,7 @@
 # Building Production-Ready AI Agents on Amazon EKS
 
+> **Tech stack:** Python · Strands Agents SDK · Qwen2.5-3B · vLLM · LiteLLM · Docker · Kubernetes (Amazon EKS)
+
 A hands-on collection of production-ready Agentic AI implementations built during the AWS BeSA Cohort 10 workshop.
 
 This repository demonstrates different architectural patterns for building, deploying, observing, evaluating, and scaling AI agents on AWS using Amazon EKS and AWS managed AI services.
